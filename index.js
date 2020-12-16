@@ -36,12 +36,12 @@ const linearMultiplyMatrixes = (A, B) => {
     return result;
 }
 
-console.log('LINEAR RESULT: ')
+console.log('LINEAR MATRIX MULTIPLYING RESULT: ');
 console.log(linearMultiplyMatrixes(A, B));
 
-const createWorkerPromise = (workerData) => {
+const createWorkerPromise = (path, workerData) => {
     return new Promise((resolve, reject) => {
-        const worker = new Worker('./multiplyTask.js', {workerData});
+        const worker = new Worker(path, {workerData});
 
         worker.on('message', data => resolve(data));
         worker.on('error', reject);
@@ -52,7 +52,7 @@ const createWorkerPromise = (workerData) => {
     });
 }
 
-const parallelMultiplyMatrixes = async (A, B) => {
+const parallelMultiplyMatrixes = (A, B) => {
     const rowsA = A.length, colsA = A[0].length,
         rowsB = B.length, colsB = B[0].length,
         result = [], promisesArray = [];
@@ -63,12 +63,15 @@ const parallelMultiplyMatrixes = async (A, B) => {
 
     for (let i = 0; i < colsB; i++) {
         for (let j = 0; j < rowsA; j++) {
-            promisesArray.push(createWorkerPromise({
-                rowAindex: j,
-                A,
-                colBindex: i,
-                B,
-            }));
+            promisesArray.push(createWorkerPromise(
+                './multiplyTask.js',
+                {
+                    rowAindex: j,
+                    A,
+                    colBindex: i,
+                    B,
+                }
+            ));
         }
     }
 
@@ -82,6 +85,66 @@ const parallelMultiplyMatrixes = async (A, B) => {
         .then(() => result)
 }
 
-console.log('PARALLEL RESULT: ')
+console.log('PARALLEL MATRIX MULTIPLYING RESULT: ');
 parallelMultiplyMatrixes(A, B).then(result => console.log(result));
 
+const a = [
+    1,
+    2,
+    4,
+    6,
+    100,
+    0,
+    10000,
+    3
+];
+
+const linearQuickSort = (arr) => {
+    if (arr.length < 2) return arr;
+    let pivot = arr[0];
+    const left = [];
+    const right = [];
+
+    for (let i = 1; i < arr.length; i++) {
+        if (pivot > arr[i]) {
+            left.push(arr[i]);
+        } else {
+            right.push(arr[i]);
+        }
+    }
+
+    return linearQuickSort(left).concat(pivot, linearQuickSort(right));
+}
+
+console.log('LINEAR BINARY SEARCH RESULT: ');
+console.log(linearQuickSort(a));
+
+const parallelQuickSort = async (arr) => {
+    if (arr.length < 2) return arr;
+
+    let pivot = arr[0];
+    const left = [];
+    const right = [];
+
+    for (let i = 1; i < arr.length; i++) {
+        if (pivot > arr[i]) {
+            left.push(arr[i]);
+        } else {
+            right.push(arr[i]);
+        }
+    }
+
+    const leftArray = await createWorkerPromise('./quickSortTask.js', {
+        array: left,
+        callback: parallelQuickSort,
+    });
+    const rightArray = await createWorkerPromise('./quickSortTask.js', {
+        array: right,
+        callback: parallelQuickSort,
+    });
+
+    return leftArray.concat(pivot, rightArray);
+}
+
+console.log('PARALLEL BINARY SEARCH RESULT: ')
+parallelQuickSort(a).then(data => console.log(data));
